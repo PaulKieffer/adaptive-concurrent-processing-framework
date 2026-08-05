@@ -13,3 +13,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_executable(acpf
     src/main.cpp
 )
+
+target_compile_options(acpf PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+)
