@@ -6,8 +6,12 @@ project(
     LANGUAGES CXX
 )
 
+# Options
 option(ACPF_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(ACPF_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
+option(ACPF_BUILD_TESTS "Build unit tests" ON)
+option(ACPF_BUILD_EXAMPLES "Build examples" ON)
+option(ACPF_BUILD_BENCHMARKS "Build benchmarks" OFF)
 
 # Prevent incompatible sanitizer combinations
 if(ACPF_ENABLE_ASAN AND ACPF_ENABLE_TSAN)
@@ -36,8 +40,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Target
-add_executable(acpf
-    src/main.cpp
+add_library(acpf
+    src/acpf.cpp
+)
+
+target_include_directories(acpf
+    PUBLIC
+        include
 )
 
 target_compile_options(acpf PRIVATE
@@ -53,4 +62,17 @@ endif()
 
 if(ACPF_ENABLE_TSAN)
     enable_sanitizer(acpf thread)
+endif()
+
+if(ACPF_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
+if(ACPF_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
+
+if(ACPF_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
 endif()
