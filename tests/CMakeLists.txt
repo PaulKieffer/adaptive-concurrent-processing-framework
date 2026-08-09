@@ -14,7 +14,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 add_executable(acpf_tests
-    sanity_test.cpp
+    #sanity_test.cpp
+    task_queue_test.cpp
 )
 
 target_link_libraries(acpf_tests
