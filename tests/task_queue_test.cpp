@@ -25,3 +25,18 @@ TEST(TaskQueue, ShutdownUnblocksWaitingConsumer) {
     worker.join();
     EXPECT_FALSE(result);
 }
+
+TEST(TaskQueue, PendingTasksSurviveShutdown) {
+    acpf::TaskQueue queue;
+    int executed = 0;
+    queue.push([&executed] { ++executed; });
+    queue.push([&executed] { ++executed; });
+    acpf::Task task;
+    queue.shutdown();
+    ASSERT_TRUE(queue.wait_and_pop(task));
+    task();
+    ASSERT_TRUE(queue.wait_and_pop(task));
+    task();
+    EXPECT_FALSE(queue.wait_and_pop(task));
+    EXPECT_EQ(executed, 2);
+}
