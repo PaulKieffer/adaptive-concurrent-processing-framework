@@ -80,7 +80,7 @@ cmake --build --preset debug
 ```
 Run tests:
 ```bash
-ctest --preset debug --output-on-failure
+ctest --preset debug 
 ```
 ### Release Build
 ```bash
@@ -91,13 +91,13 @@ cmake --build --preset release
 ```bash
 cmake --preset asan
 cmake --build --preset asan
-ctest --preset asan --output-on-failure
+ctest --preset asan 
 ```
 #### ThreadSanitizer
 ```bash
 cmake --preset tsan
 cmake --build --preset tsan
-ctest --preset tsan --output-on-failure
+ctest --preset tsan 
 ```
 ## Development
 

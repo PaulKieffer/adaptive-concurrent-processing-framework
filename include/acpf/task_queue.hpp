@@ -19,7 +19,7 @@ namespace acpf {
         TaskQueue() = default;
         TaskQueue(const TaskQueue&) = delete;
         TaskQueue& operator=(const TaskQueue&) = delete;
-        void push(Task task);
+        bool push(Task task);
         bool wait_and_pop(Task& task);
         void shutdown();
     };
