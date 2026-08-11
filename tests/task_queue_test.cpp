@@ -1,5 +1,6 @@
 #include <atomic>
 #include <thread>
+#include <vector>
 #include <gtest/gtest.h>
 #include "acpf/task_queue.hpp"
 
@@ -49,4 +50,50 @@ TEST(TaskQueue, RejectPushAfterShutdown) {
     EXPECT_FALSE(queue.push([&executed] { executed = true; }));
     EXPECT_FALSE(queue.wait_and_pop(task));
     EXPECT_FALSE(executed);
+}
+
+TEST(TaskQueue, MultipleProducers) {
+    acpf::TaskQueue queue;
+
+    constexpr int producer_count = 4;
+    constexpr int tasks_per_producer = 100;
+    constexpr int expected_tasks = producer_count * tasks_per_producer;
+
+    std::atomic<int> rejected_tasks = 0;
+    std::atomic<int> executed_tasks = 0;
+
+    std::vector<std::thread> producers;
+    producers.reserve(producer_count);
+
+    for (int i = 0; i < producer_count; ++i) {
+        producers.emplace_back([&queue, &rejected_tasks, &executed_tasks, &tasks_per_producer] {
+            for (int j = 0; j < tasks_per_producer; ++j) {
+                const bool accepted = queue.push([&executed_tasks] {
+                    executed_tasks.fetch_add(1, std::memory_order_relaxed);
+                });
+
+                if (!accepted) {
+                    rejected_tasks.fetch_add(1, std::memory_order_relaxed);
+                }
+            }
+        });
+    }
+
+    for (auto& producer : producers) {
+        producer.join();
+    }
+
+    queue.shutdown();
+
+    acpf::Task task;
+    int retrieved_tasks = 0;
+
+    while (queue.wait_and_pop(task)) {
+        task();
+        ++retrieved_tasks;
+    }
+
+    EXPECT_EQ(rejected_tasks.load(), 0);
+    EXPECT_EQ(retrieved_tasks, expected_tasks);
+    EXPECT_EQ(executed_tasks.load(), expected_tasks);
 }

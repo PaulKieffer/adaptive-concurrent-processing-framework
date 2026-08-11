@@ -15,7 +15,7 @@ namespace acpf {
         std::unique_lock<std::mutex> lock(mutex_);
         // wake up on available task or queue shutting down
         condition_.wait(lock, [this] { return !queue_.empty() || shutdown_; });
-        // don't accept new tasks after queue shutdown
+        // shutdown is complete once all pending tasks have been processed
         if (queue_.empty() && shutdown_) { return false; } 
         task = std::move(queue_.front());
         queue_.pop();
