@@ -97,3 +97,38 @@ TEST(TaskQueue, MultipleProducers) {
     EXPECT_EQ(retrieved_tasks, expected_tasks);
     EXPECT_EQ(executed_tasks.load(), expected_tasks);
 }
+
+TEST(TaskQueue, MultipleConsumer) {
+    acpf::TaskQueue queue;
+
+    constexpr int consumer_count = 4;
+    constexpr int tasks = 400;
+    constexpr int expected_tasks = tasks;
+
+    std::atomic<int> executed_tasks = 0;
+
+    for (int i = 0; i < tasks; ++i) {
+        ASSERT_TRUE(queue.push([&executed_tasks] { ++executed_tasks; }));
+    }
+
+    queue.shutdown();
+
+    std::vector<std::thread> consumers;
+    consumers.reserve(consumer_count);
+
+    for (int i = 0; i < consumer_count; ++i) {
+        consumers.emplace_back([&queue] {
+            acpf::Task task;
+
+            while (queue.wait_and_pop(task)) {
+                task();
+            }
+        });
+    }
+
+    for (auto& consumer : consumers) {
+        consumer.join();
+    }
+
+    EXPECT_EQ(executed_tasks, expected_tasks);
+}
