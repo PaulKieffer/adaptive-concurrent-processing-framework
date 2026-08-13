@@ -132,3 +132,57 @@ TEST(TaskQueue, MultipleConsumer) {
 
     EXPECT_EQ(executed_tasks, expected_tasks);
 }
+
+TEST(TaskQueue, MultiProducerMultiConsumer) {
+    acpf::TaskQueue queue;
+
+    constexpr int producer_count = 2;
+    constexpr int consumer_count = 2;
+    constexpr int tasks_per_producer = 100;
+    constexpr int expected_tasks = producer_count * tasks_per_producer;
+
+    std::atomic<int> rejected_tasks = 0;
+    std::atomic<int> executed_tasks = 0;
+
+    std::vector<std::thread> producers;
+    producers.reserve(producer_count);
+    std::vector<std::thread> consumers;
+    consumers.reserve(consumer_count);
+
+    for (int i = 0; i < consumer_count; ++i) {
+        consumers.emplace_back([&queue] {
+            acpf::Task task;
+
+            while (queue.wait_and_pop(task)) {
+                task();
+            }
+        });
+    }
+
+    for (int i = 0; i < producer_count; ++i) {
+        producers.emplace_back([&queue, &rejected_tasks, &executed_tasks, &tasks_per_producer] {
+            for (int j = 0; j < tasks_per_producer; ++j) {
+                const bool accepted = queue.push([&executed_tasks] {
+                    executed_tasks.fetch_add(1, std::memory_order_relaxed);
+                });
+
+                if (!accepted) {
+                    rejected_tasks.fetch_add(1, std::memory_order_relaxed);
+                }
+            }
+        });
+    }
+
+    for (auto& producer : producers) {
+        producer.join();
+    }
+
+    queue.shutdown();
+
+    for (auto& consumer : consumers) {
+        consumer.join();
+    }
+
+    EXPECT_EQ(rejected_tasks.load(), 0);
+    EXPECT_EQ(executed_tasks.load(), expected_tasks);
+}
