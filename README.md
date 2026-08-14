@@ -34,8 +34,10 @@ Currently implemented:
 - CTest integration
 - Thread-safe TaskQueue
 - Blocking task retrieval using std::condition_variable
-- Controlled queue shutdown
-- Unit tests for task insertion/retrieval and shutdown behavior
+- Graceful queue shutdown
+- Rejection of new tasks after shutdown
+- Multi-producer and multi-consumer concurrency tests
+- ThreadSanitizer validation of the TaskQueue test suite
 
 ## TaskQueue
 
@@ -48,11 +50,49 @@ Current functionality includes:
 - Producer-consumer synchronization
 - Graceful shutdown
 - Rejection of new tasks after shutdown
+- Concurrent producer and consumer support
 
+## TaskQueue API
+
+### `push(Task task)`
+
+Adds a task to the queue.
+
+- Task is passed by value.
+- Returns `true` if the task was accepted.
+- Returns `false` if the queue is already shut down.
+- Does not block waiting for a consumer or task execution.
+- Can be called concurrently from multiple threads.
+- A successfully inserted task signals a waiting consumer.
+
+### `wait_and_pop(Task& task)`
+
+Waits for and removes a task from the queue.
+
+- `task` receives the removed task on successful return.
+- Blocks while the queue is empty and not shut down.
+- Returns `true` if a task was removed.
+- Returns `false` if the queue is shut down and empty.
+- Can be called concurrently from multiple threads.
+
+### `shutdown()`
+
+Shuts down the queue.
+
+- Can be called concurrently from multiple threads.
+- Wakes all threads currently waiting in `wait_and_pop()`.
+
+### Shutdown semantics
+
+Once shutdown has been initiated:
+
+- new tasks are rejected;
+- already accepted tasks remain available for processing;
+- waiting consumers are woken;
+- `wait_and_pop()` returns `false` once the queue is shut down and no tasks remain.
 
 ## Planned features:
 
-- Additional TaskQueue concurrency tests
 - Thread pool
 - Worker thread management
 - Task lifecycle management
