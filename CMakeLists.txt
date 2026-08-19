@@ -42,6 +42,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Target
 add_library(acpf
     src/task_queue.cpp
+    src/thread_pool.cpp
 )
 
 target_include_directories(acpf
