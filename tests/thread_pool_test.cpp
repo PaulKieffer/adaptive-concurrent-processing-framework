@@ -93,3 +93,101 @@ TEST(ThreadPool, ExecutesMultipleTasks) {
 
     EXPECT_EQ(executed_task_count.load(), task_count);
 }
+
+TEST(ThreadPool, ExecutesTasksConcurrently) {
+    constexpr int worker_count = 4;
+    constexpr int task_count = worker_count;
+
+    acpf::TaskQueue queue;
+
+    std::atomic<int> active_tasks = 0;
+
+    /*
+     * Signals when all tasks have entered their execution section.
+     * The test waits for this signal to ensure that all workers are
+     * executing a task concurrently before allowing the tasks to finish.
+     */
+    std::promise<void> tasks_started;
+    auto all_tasks_started = tasks_started.get_future();
+
+    /*
+     * Shared release signal for all tasks.
+     * Tasks remain active until the test explicitly releases them.
+     * This prevents the first worker from finishing before the other
+     * workers have had a chance to start their tasks.
+     */
+    std::promise<void> release_tasks;
+    auto release = release_tasks.get_future().share();
+
+    for (int i = 0; i < task_count; ++i) {
+        ASSERT_TRUE(
+            queue.push([&active_tasks, &tasks_started, release] {
+                const int active = active_tasks.fetch_add(
+                    1,
+                    std::memory_order_relaxed
+                ) + 1;
+
+                /*
+                 * Once all tasks are active, signal the test thread.
+                 * Since task_count equals worker_count, reaching this
+                 * point means that all workers are executing tasks at
+                 * the same time.
+                 */
+                if (active == task_count) {
+                    tasks_started.set_value();
+                }
+
+                /*
+                 * Keep the task active until the test has verified
+                 * that all workers reached this point.
+                 */
+                release.wait();
+
+                active_tasks.fetch_sub(1, std::memory_order_relaxed);
+            })
+        );
+    }
+
+    {
+        acpf::ThreadPool pool(queue, worker_count);
+
+        /*
+         * Wait until all workers are executing a task concurrently.
+         * A timeout is used deliberately: if the ThreadPool does not
+         * execute all tasks concurrently, the future would never become
+         * ready and an unconditional wait could block the test forever.
+         */
+        const auto status =
+            all_tasks_started.wait_for(std::chrono::seconds(5));
+
+        /*
+         * Release the tasks before shutting down the queue.
+         * The tasks are currently blocked on release.wait(). They must
+         * be allowed to finish before the ThreadPool can join its workers.
+         */
+        if (status == std::future_status::ready) {
+            release_tasks.set_value();
+        }
+
+        /*
+         * The ThreadPool does not shut down the TaskQueue itself.
+         * Therefore the queue must be shut down explicitly before the
+         * ThreadPool is destroyed. This allows workers that return to
+         * wait_and_pop() to terminate cleanly.
+         */
+        queue.shutdown();
+
+        /*
+         * Only now do we evaluate the result.
+         * This ordering is intentional: ASSERT_* may abort the current
+         * test function. The queue has already been shut down above, so
+         * the ThreadPool destructor cannot leave workers blocked forever.
+         */
+        ASSERT_EQ(status, std::future_status::ready);
+    }
+
+    EXPECT_EQ(
+        active_tasks.load(std::memory_order_relaxed),
+        0
+    );
+}

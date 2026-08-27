@@ -2,6 +2,9 @@
 build/
 cmake-build-*/
 
+# CTest generated files
+Testing/
+
 # CMake generated files
 CMakeCache.txt
 CMakeFiles/
