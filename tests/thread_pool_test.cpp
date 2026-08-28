@@ -191,3 +191,12 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
         0
     );
 }
+
+TEST(ThreadPool, ReportsWorkerCount) {
+    acpf::TaskQueue queue;
+    acpf::ThreadPool pool(queue, 4);
+
+    EXPECT_EQ(pool.worker_count(), 4);
+
+    queue.shutdown();
+}

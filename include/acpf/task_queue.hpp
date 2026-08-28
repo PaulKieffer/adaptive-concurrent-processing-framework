@@ -4,70 +4,55 @@
 #include <functional>
 #include <mutex>
 #include <queue>
+#include <cstddef>
 
 namespace acpf {
 
     using Task = std::function<void()>;
 
+    class ThreadPool;
+
     class TaskQueue {
     private:
+        friend class ThreadPool;    
+
         std::queue<Task> queue_;
-        std::mutex mutex_;
+        mutable std::mutex mutex_;
         std::condition_variable condition_;
         bool shutdown_ = false;
+        std::size_t workers_to_stop_ = 0;
+
+        /*
+         * Requests one waiting worker to stop.
+         * Wakes a waiting consumer.
+         */
+        void request_worker_stop();
     public:
         TaskQueue() = default;
         TaskQueue(const TaskQueue&) = delete;
         TaskQueue& operator=(const TaskQueue&) = delete;
         
-        /**
+        /*
          * Adds a task to the queue.
-         *
-         * Parameter:
-         *   task - Task passed by value.
-         *
-         * Return:
-         *   true  - Task was accepted.
-         *   false - Task was rejected because the queue is shut down.
-         *
-         * Blocking:
-         *   Does not block waiting for a consumer or task execution.
-         *
-         * Thread-safety:
-         *   Can be called concurrently from multiple threads.
-         *
-         * Synchronization:
-         *   A successfully inserted task signals a waiting consumer.
+         * Returns false if the queue is shut down.
          */
         bool push(Task task);
 
-        /**
+        /*
          * Waits for and removes a task from the queue.
-         *
-         * Parameter:
-         *   task - Output reference receiving the removed task.
-         *
-         * Return:
-         *   true  - A task was removed and assigned to task.
-         *   false - The queue is shut down and empty.
-         *
-         * Blocking:
-         *   Blocks while the queue is empty and not shut down.
-         *
-         * Thread-safety:
-         *   Can be called concurrently from multiple threads.
+         * Returns false when the queue is shut down and empty.
          */
         bool wait_and_pop(Task& task);
 
-        /**
-         * Shuts down the queue.
-         *
-         * Thread-safety:
-         *   Can be called concurrently from multiple threads.
-         *
-         * Synchronization:
-         *   Wakes all threads currently waiting in wait_and_pop().
+        
+        /*
+         * Shuts down the queue and wakes waiting consumers.
          */
         void shutdown();
+
+        /*
+         * Returns the current number of tasks in the queue.
+         */
+        std::size_t size() const;
     };
 }

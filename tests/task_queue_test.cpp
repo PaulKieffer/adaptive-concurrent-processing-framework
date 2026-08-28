@@ -186,3 +186,18 @@ TEST(TaskQueue, MultiProducerMultiConsumer) {
     EXPECT_EQ(rejected_tasks.load(), 0);
     EXPECT_EQ(executed_tasks.load(), expected_tasks);
 }
+
+TEST(TaskQueue, ReportsSize) {
+    acpf::TaskQueue queue;
+
+    EXPECT_EQ(queue.size(), 0);
+
+    ASSERT_TRUE(queue.push([] {}));
+    EXPECT_EQ(queue.size(), 1);
+
+    acpf::Task task;
+    ASSERT_TRUE(queue.wait_and_pop(task));
+    EXPECT_EQ(queue.size(), 0);
+
+    queue.shutdown();
+}
