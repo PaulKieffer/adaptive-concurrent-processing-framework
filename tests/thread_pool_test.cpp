@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include "acpf/thread_pool.hpp"
 #include "acpf/task_queue.hpp"
+#include "acpf/controller.hpp"
 
 
 TEST(ThreadPool, ExecutesTask) {
@@ -21,6 +22,7 @@ TEST(ThreadPool, ExecutesTask) {
 
     {
         acpf::ThreadPool pool(queue, 1);
+        acpf::Controller controller(queue, pool);
 
         /*
          * A timeout prevents the test from blocking indefinitely if the
@@ -32,8 +34,6 @@ TEST(ThreadPool, ExecutesTask) {
          */
         const auto status =
             task_finished.wait_for(std::chrono::seconds(1));
-
-        queue.shutdown();
 
         ASSERT_EQ(status, std::future_status::ready);
     }
@@ -67,6 +67,7 @@ TEST(ThreadPool, ExecutesMultipleTasks) {
 
     {
         acpf::ThreadPool pool(queue, 1);
+        acpf::Controller controller(queue, pool);
 
         /*
          * Wait until all submitted tasks have been executed.
@@ -85,8 +86,6 @@ TEST(ThreadPool, ExecutesMultipleTasks) {
          */
         const auto status =
             tasks_finished.wait_for(std::chrono::seconds(5));
-
-        queue.shutdown();
 
         ASSERT_EQ(status, std::future_status::ready);
     }
@@ -150,6 +149,7 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
 
     {
         acpf::ThreadPool pool(queue, worker_count);
+        acpf::Controller controller(queue, pool);
 
         /*
          * Wait until all workers are executing a task concurrently.
@@ -170,14 +170,6 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
         }
 
         /*
-         * The ThreadPool does not shut down the TaskQueue itself.
-         * Therefore the queue must be shut down explicitly before the
-         * ThreadPool is destroyed. This allows workers that return to
-         * wait_and_pop() to terminate cleanly.
-         */
-        queue.shutdown();
-
-        /*
          * Only now do we evaluate the result.
          * This ordering is intentional: ASSERT_* may abort the current
          * test function. The queue has already been shut down above, so
@@ -195,8 +187,7 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
 TEST(ThreadPool, ReportsWorkerCount) {
     acpf::TaskQueue queue;
     acpf::ThreadPool pool(queue, 4);
+    acpf::Controller controller(queue, pool);
 
     EXPECT_EQ(pool.worker_count(), 4);
-
-    queue.shutdown();
 }

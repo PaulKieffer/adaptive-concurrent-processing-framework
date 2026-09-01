@@ -11,11 +11,14 @@ namespace acpf {
 
     class ThreadPool {
     private:
+        friend class Controller;    
+
         void worker_stopped(std::thread::id id);
         void reap_stopped_workers();
         TaskQueue& queue_;
         std::vector<std::thread> workers_;
         mutable std::mutex control_mutex_;
+        std::condition_variable control_condition_;
         std::size_t pending_reductions_ = 0;
         std::size_t stopped_threads_ = 0;
     public:
@@ -48,5 +51,6 @@ namespace acpf {
          * Does not forcibly terminate running workers.
          */
         void reduce_workers(std::size_t count);
+        void wait_for_workers_to_stop();
     };
 }

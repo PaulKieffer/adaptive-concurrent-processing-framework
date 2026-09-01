@@ -16,6 +16,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(acpf_tests
     task_queue_test.cpp
     thread_pool_test.cpp
+    controller_test.cpp
 )
 
 target_link_libraries(acpf_tests

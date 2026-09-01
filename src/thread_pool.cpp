@@ -97,6 +97,16 @@ namespace acpf {
                 break;
             }
         }
+        control_condition_.notify_one();
     }
+
+    void ThreadPool::wait_for_workers_to_stop() {
+        std::unique_lock lock(control_mutex_);
+
+        control_condition_.wait(lock, [this] {
+            return stopped_threads_ == workers_.size();
+        });
+    }
+
 
 }
