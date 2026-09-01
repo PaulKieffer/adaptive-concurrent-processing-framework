@@ -23,7 +23,6 @@ TEST(ThreadPool, ExecutesTask) {
     {
         acpf::ThreadPool pool(queue, 1);
         acpf::Controller controller(queue, pool);
-
         /*
          * A timeout prevents the test from blocking indefinitely if the
          * worker fails to execute the task.
@@ -68,7 +67,6 @@ TEST(ThreadPool, ExecutesMultipleTasks) {
     {
         acpf::ThreadPool pool(queue, 1);
         acpf::Controller controller(queue, pool);
-
         /*
          * Wait until all submitted tasks have been executed.
          *
@@ -100,7 +98,6 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
     acpf::TaskQueue queue;
 
     std::atomic<int> active_tasks = 0;
-
     /*
      * Signals when all tasks have entered their execution section.
      * The test waits for this signal to ensure that all workers are
@@ -108,7 +105,6 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
      */
     std::promise<void> tasks_started;
     auto all_tasks_started = tasks_started.get_future();
-
     /*
      * Shared release signal for all tasks.
      * Tasks remain active until the test explicitly releases them.
@@ -125,7 +121,6 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
                     1,
                     std::memory_order_relaxed
                 ) + 1;
-
                 /*
                  * Once all tasks are active, signal the test thread.
                  * Since task_count equals worker_count, reaching this
@@ -135,7 +130,6 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
                 if (active == task_count) {
                     tasks_started.set_value();
                 }
-
                 /*
                  * Keep the task active until the test has verified
                  * that all workers reached this point.
@@ -150,7 +144,6 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
     {
         acpf::ThreadPool pool(queue, worker_count);
         acpf::Controller controller(queue, pool);
-
         /*
          * Wait until all workers are executing a task concurrently.
          * A timeout is used deliberately: if the ThreadPool does not
@@ -159,7 +152,6 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
          */
         const auto status =
             all_tasks_started.wait_for(std::chrono::seconds(5));
-
         /*
          * Release the tasks before shutting down the queue.
          * The tasks are currently blocked on release.wait(). They must
@@ -168,7 +160,6 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
         if (status == std::future_status::ready) {
             release_tasks.set_value();
         }
-
         /*
          * Only now do we evaluate the result.
          * This ordering is intentional: ASSERT_* may abort the current

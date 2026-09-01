@@ -12,9 +12,18 @@ namespace acpf {
     class ThreadPool {
     private:
         friend class Controller;    
-
+        /*
+         * Records that a worker has stopped and marks its thread for reaping.
+         * Called by a worker when its worker loop terminates.
+         */
         void worker_stopped(std::thread::id id);
+        /*
+         * Joins all workers that have already stopped and removes them
+         * from the worker list.
+         * This function does not wait for active workers to stop.
+         */
         void reap_stopped_workers();
+
         TaskQueue& queue_;
         std::vector<std::thread> workers_;
         mutable std::mutex control_mutex_;
@@ -51,6 +60,16 @@ namespace acpf {
          * Does not forcibly terminate running workers.
          */
         void reduce_workers(std::size_t count);
+        /*
+         * Waits until all currently active worker threads have stopped.
+         *
+         * This function does not request workers to stop and does not join or
+         * remove stopped workers. Worker termination must be triggered separately,
+         * for example by shutting down the associated TaskQueue or requesting
+         * worker reductions.
+         *
+         * This function is intended for lifecycle coordination by the Controller.
+         */
         void wait_for_workers_to_stop();
     };
 }

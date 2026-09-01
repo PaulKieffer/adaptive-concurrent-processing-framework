@@ -16,6 +16,7 @@ namespace acpf {
                 "ThreadPool requires at least one worker"
             );
         }
+        // worker loop
         for (std::size_t i = 0; i < worker_count; ++i) {
             workers_.emplace_back([this] {
                 Task task;
@@ -23,8 +24,7 @@ namespace acpf {
                 while (queue_.wait_and_pop(task)) {
                     task();
                 }
-
-                // Worker has actually stopped.
+                // worker has stopped
                 worker_stopped(std::this_thread::get_id());
             });
         }
@@ -44,21 +44,16 @@ namespace acpf {
     void ThreadPool::reduce_workers(std::size_t count) {
         std::lock_guard lock(control_mutex_);
 
-        const std::size_t effective_count =
-            workers_.size() - pending_reductions_;
-
+        // calculate allowed amount of workers to reduce (min 1 active worker)
+        const std::size_t effective_count = workers_.size() - pending_reductions_;
         if (effective_count <= 1 || count == 0) {
             return;
         }
-
-        const std::size_t reducible =
-            effective_count - 1;
-
-        const std::size_t requested =
-            std::min(count, reducible);
-
+        const std::size_t reducible = effective_count - 1;
+        const std::size_t requested = std::min(count, reducible);
         pending_reductions_ += requested;
 
+        // request workers to stop
         for (std::size_t i = 0; i < requested; ++i) {
             queue_.request_worker_stop();
         }
@@ -67,17 +62,16 @@ namespace acpf {
 
     void ThreadPool::reap_stopped_workers() {
         std::vector<std::thread> stopped;
-
         {
             std::lock_guard lock(control_mutex_);
-
+            // stopped workers, added to stopped removed from workers_
             while (stopped_threads_ > 0) {
                 stopped.push_back(std::move(workers_.back()));
                 workers_.pop_back();
                 --stopped_threads_;
             }
         }
-
+        // join workers in stopped
         for (auto& worker : stopped) {
             worker.join();
         }
@@ -86,7 +80,7 @@ namespace acpf {
 
     void ThreadPool::worker_stopped(std::thread::id id) {
         std::lock_guard lock(control_mutex_);
-        
+        // move stopped thread to end of array 
         for (std::size_t i = 0; i < workers_.size(); ++i) {
             if (workers_[i].get_id() == id) {
                 std::swap(workers_[i], workers_.back());

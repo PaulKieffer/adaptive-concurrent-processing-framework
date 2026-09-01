@@ -12,19 +12,6 @@ namespace acpf {
         return true;
     }
 
-    /*
-    bool TaskQueue::wait_and_pop(Task& task) {
-        std::unique_lock<std::mutex> lock(mutex_);
-        // wake up on available task or queue shutting down
-        condition_.wait(lock, [this] { return !queue_.empty() || shutdown_; });
-        // shutdown is complete once all pending tasks have been processed
-        if (queue_.empty() && shutdown_) { return false; } 
-        task = std::move(queue_.front());
-        queue_.pop();
-        return true;
-    }
-    */
-
     bool TaskQueue::wait_and_pop(Task& task) {
         std::unique_lock lock(mutex_);
         
@@ -36,8 +23,7 @@ namespace acpf {
                 || workers_to_stop_ > 0;
         });
 
-        // shutdown is complete once all pending tasks have been 
-        // processed
+        // shutdown is complete once all pending tasks have been processed
         if (!queue_.empty()) {
             task = std::move(queue_.front());
             queue_.pop();

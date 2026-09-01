@@ -4,151 +4,161 @@ A modern C++20 framework for concurrent task processing, workload management and
 
 ## Overview
 
-The Adaptive Concurrent Processing Framework (ACPF) is a learning and portfolio project focused on modern C++ system development.
-
 The goal is to design and implement a modular framework for concurrent task processing with a focus on:
 
-- Concurrency
-- Synchronization
-- Performance
-- Workload management
-- Clean and maintainable C++ architecture
-
-The project is inspired by concepts from my Bachelor's thesis on adaptive indexing in time-series databases, particularly workload-aware processing, producer-consumer architectures and concurrent execution.
+ - Concurrency
+ - Synchronization
+ - Performance
+ - Workload management
+ - Clean and maintainable C++ architecture
 
 ## Current Status
 
-Early development
+Early development.
 
 Currently implemented:
 
-- C++20 project structure
-- CMake-based build system
-- Debug and Release configurations
-- CMake build and test presets
-- Compiler warnings (-Wall, -Wextra, -Wpedantic)
-- AddressSanitizer (ASan) configuration
-- ThreadSanitizer (TSan) configuration
-- clang-format configuration
-- GoogleTest integration
-- CTest integration
-- Thread-safe TaskQueue
-- Blocking task retrieval using std::condition_variable
-- Graceful queue shutdown
-- Rejection of new tasks after shutdown
-- Multi-producer and multi-consumer concurrency tests
-- ThreadSanitizer validation of the TaskQueue test suite
+ - C++20 project structure
+ - CMake-based build system
+ - Debug and Release configurations
+ - ASan and TSan configurations
+ - GoogleTest and CTest integration
+ - Thread-safe TaskQueue
+ - Blocking task retrieval
+ - Graceful queue shutdown
+ - Multi-producer and multi-consumer support
+ - ThreadPool with configurable worker count
+ - Concurrent task execution
+ - Cooperative worker reduction
+ - Worker lifecycle management
+ - Controller for coordinating queue shutdown and worker lifecycle
+
+## Architecture
+
+ACPF currently consists of three main components:
+
+ - `TaskQueue` manages task storage, synchronization and queue shutdown.
+ - `ThreadPool` manages worker threads and executes tasks from an external `TaskQueue`.
+ - `Controller` coordinates the lifecycle of an associated `TaskQueue` and `ThreadPool`.
+
+`ThreadPool` and `Controller` hold references to their associated objects rather than taking ownership.
+
+The `Controller` coordinates shutdown by shutting down the queue, waiting for workers to stop and reaping stopped workers.
 
 ## TaskQueue
 
-The TaskQueue provides the foundation for the framework's future worker and scheduling components.
+The `TaskQueue` provides the foundation for concurrent task processing.
+
+Current functionality includes:
+ 
+ - Thread-safe task insertion
+ - Blocking task retrieval
+ - Producer-consumer synchronization
+ - Graceful shutdown
+ - Rejection of new tasks after shutdown
+ - Concurrent producer and consumer support
+ - Queue size observation
+ - Cooperative worker stop requests
+
+## ThreadPool
+
+The `ThreadPool` manages worker threads that consume and execute tasks from an external `TaskQueue`.
 
 Current functionality includes:
 
-- Thread-safe task insertion
-- Blocking task retrieval
-- Producer-consumer synchronization
-- Graceful shutdown
-- Rejection of new tasks after shutdown
-- Concurrent producer and consumer support
+ - Configurable worker count
+ - Automatic worker startup
+ - Concurrent task execution
+ - Worker count observation
+ - Cooperative worker reduction
+ - Worker lifecycle management
 
-## TaskQueue API
+Running tasks are not forcibly interrupted when workers are reduced.
 
-### `push(Task task)`
+## Controller
 
-Adds a task to the queue.
+The `Controller` coordinates the lifecycle of an existing `TaskQueue` and `ThreadPool`.
 
-- Task is passed by value.
-- Returns `true` if the task was accepted.
-- Returns `false` if the queue is already shut down.
-- Does not block waiting for a consumer or task execution.
-- Can be called concurrently from multiple threads.
-- A successfully inserted task signals a waiting consumer.
+It does not own either object.
 
-### `wait_and_pop(Task& task)`
+During destruction, the Controller:
 
-Waits for and removes a task from the queue.
+ 1. Shuts down the TaskQueue
+ 2. Waits for workers to stop
+ 3. Reaps stopped workers
 
-- `task` receives the removed task on successful return.
-- Blocks while the queue is empty and not shut down.
-- Returns `true` if a task was removed.
-- Returns `false` if the queue is shut down and empty.
-- Can be called concurrently from multiple threads.
+Running tasks are not forcibly interrupted. Controller destruction may therefore block until all workers have stopped.
 
-### `shutdown()`
+## Tests
 
-Shuts down the queue.
+The project uses GoogleTest and CTest for automated testing.
 
-- Can be called concurrently from multiple threads.
-- Wakes all threads currently waiting in `wait_and_pop()`.
+The test suite covers:
 
-### Shutdown semantics
+ - TaskQueue functionality and shutdown semantics
+ - Concurrent producer and consumer scenarios
+ - ThreadPool task execution
+ - Multiple workers and concurrent execution
+ - Worker lifecycle and reduction
+ - Controller shutdown behavior
 
-Once shutdown has been initiated:
+AddressSanitizer and ThreadSanitizer are available for additional validation.
 
-- new tasks are rejected;
-- already accepted tasks remain available for processing;
-- waiting consumers are woken;
-- `wait_and_pop()` returns `false` once the queue is shut down and no tasks remain.
+## Planned Features
 
-## Planned features:
-
-- Thread pool
-- Worker thread management
-- Task lifecycle management
-- Runtime metrics
-- Performance benchmarks
-- Workload monitoring
-- Adaptive scheduling
+ - Runtime metrics
+ - Workload monitoring
+ - Adaptive worker scaling
+ - Adaptive scheduling
+ - Performance benchmarks
+ - Configurable monitoring intervals
 
 ## Requirements
 
-- C++20 compatible compiler
-- CMake >= 3.20
-- GoogleTest (managed through the project's CMake configuration)
+ - C++20 compatible compiler
+ - CMake >= 3.20
+ - GoogleTest
 
 ## Build
 
-Configure the Debug build:
-
+Configure and build the Debug version:
 ```bash
 cmake --preset debug
-```
-Build:
-```bash
 cmake --build --preset debug
 ```
-Run tests:
+
+Run the tests:
 ```bash
-ctest --preset debug 
+ctest --preset debug
 ```
-### Release Build
+
+## Release Build
 ```bash
 cmake --preset release
 cmake --build --preset release
 ```
-### AddressSanitizer
+
+## AddressSanitizer
 ```bash
 cmake --preset asan
 cmake --build --preset asan
-ctest --preset asan 
+ctest --preset asan
 ```
-#### ThreadSanitizer
+
+## ThreadSanitizer
 ```bash
 cmake --preset tsan
 cmake --build --preset tsan
-ctest --preset tsan 
+ctest --preset tsan
 ```
-## Development
 
+## Development
 The project uses:
 
-- CMake for build configuration
-- GoogleTest for unit testing
-- CTest for test execution
-- AddressSanitizer for memory error detection
-- ThreadSanitizer for data-race detection
-- clang-format for consistent code formatting
-- Git for version control
-
-The project is developed incrementally with small, focused commits and reproducible build configurations.
+ - CMake
+ - GoogleTest
+ - CTest
+ - AddressSanitizer
+ - ThreadSanitizer
+ - clang-format
+ - Git
