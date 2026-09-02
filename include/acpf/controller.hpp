@@ -10,11 +10,14 @@ namespace acpf {
     /*
      * Coordinates the lifecycle of a TaskQueue and its associated ThreadPool.
      *
-     * The Controller holds references to both objects and does not take
-     * ownership of them.
+     * The Controller holds non-owning references to the ThreadPool and its
+     * associated TaskQueue. The TaskQueue reference is obtained from the
+     * ThreadPool.
      *
-     * During destruction, the Controller shuts down the TaskQueue and waits
-     * for all worker threads to stop before reaping them.
+     * The Controller defines the active lifetime of the associated processing
+     * system. When the Controller is destroyed, the TaskQueue is shut down,
+     * all workers are allowed to finish their current tasks and stop, and
+     * stopped workers are reaped.
      *
      * Running tasks are not forcibly interrupted. Destruction may therefore
      * block until all currently executing tasks have completed.
@@ -26,13 +29,18 @@ namespace acpf {
     public:
 
         /*
-         * Creates a Controller for the specified TaskQueue and ThreadPool.
-         * The ThreadPool must use the provided TaskQueue.
+         * Creates a Controller for the specified ThreadPool.
+         * The Controller uses the TaskQueue associated with the ThreadPool.
          */
-        Controller(TaskQueue& queue, ThreadPool& pool);
+        Controller(ThreadPool& pool);
 
         /*
-         * Shuts down the TaskQueue and waits for all workers to stop.
+         * Ends the active lifetime of the associated processing system.
+         *
+         * The TaskQueue is shut down and all workers are allowed to finish before
+         * they are reaped. After destruction, the associated ThreadPool has no
+         * active workers and its TaskQueue no longer accepts new tasks.
+         *
          * Running tasks are not forcibly interrupted. Destruction may therefore
          * block until all currently executing tasks have completed.
          */

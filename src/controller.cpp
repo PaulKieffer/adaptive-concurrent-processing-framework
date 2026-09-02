@@ -2,8 +2,8 @@
 
 namespace acpf {
 
-    Controller::Controller(TaskQueue& queue, ThreadPool& pool)
-        : queue_(queue), pool_(pool) {}
+    Controller::Controller(ThreadPool& pool)
+        : queue_(pool.queue_), pool_(pool) {}
 
     Controller::~Controller() {
         queue_.shutdown();

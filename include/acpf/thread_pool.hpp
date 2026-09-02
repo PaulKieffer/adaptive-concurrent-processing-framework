@@ -5,9 +5,12 @@
 #include <cstddef>
 #include "acpf/task_queue.hpp"
 #include <mutex>
+#include <condition_variable>
 
 
 namespace acpf {
+
+    class Controller;
 
     class ThreadPool {
     private:

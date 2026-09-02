@@ -22,7 +22,7 @@ TEST(ThreadPool, ExecutesTask) {
 
     {
         acpf::ThreadPool pool(queue, 1);
-        acpf::Controller controller(queue, pool);
+        acpf::Controller controller(pool);
         /*
          * A timeout prevents the test from blocking indefinitely if the
          * worker fails to execute the task.
@@ -66,7 +66,7 @@ TEST(ThreadPool, ExecutesMultipleTasks) {
 
     {
         acpf::ThreadPool pool(queue, 1);
-        acpf::Controller controller(queue, pool);
+        acpf::Controller controller(pool);
         /*
          * Wait until all submitted tasks have been executed.
          *
@@ -143,7 +143,7 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
 
     {
         acpf::ThreadPool pool(queue, worker_count);
-        acpf::Controller controller(queue, pool);
+        acpf::Controller controller(pool);
         /*
          * Wait until all workers are executing a task concurrently.
          * A timeout is used deliberately: if the ThreadPool does not
@@ -178,7 +178,7 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
 TEST(ThreadPool, ReportsWorkerCount) {
     acpf::TaskQueue queue;
     acpf::ThreadPool pool(queue, 4);
-    acpf::Controller controller(queue, pool);
+    acpf::Controller controller(pool);
 
     EXPECT_EQ(pool.worker_count(), 4);
 }
