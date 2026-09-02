@@ -6,7 +6,6 @@
 
 
 namespace acpf {
-    
     /*
      * Coordinates the lifecycle of a TaskQueue and its associated ThreadPool.
      *
@@ -27,13 +26,11 @@ namespace acpf {
         TaskQueue& queue_;
         ThreadPool& pool_;
     public:
-
         /*
          * Creates a Controller for the specified ThreadPool.
          * The Controller uses the TaskQueue associated with the ThreadPool.
          */
         Controller(ThreadPool& pool);
-
         /*
          * Ends the active lifetime of the associated processing system.
          *
@@ -45,5 +42,6 @@ namespace acpf {
          * block until all currently executing tasks have completed.
          */
         ~Controller();
+        void update();
     };
 }
