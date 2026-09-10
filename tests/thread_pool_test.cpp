@@ -1,10 +1,10 @@
 #include <atomic>
 #include <future>
 #include <gtest/gtest.h>
-#include "acpf/thread_pool.hpp"
-#include "acpf/task_queue.hpp"
-#include "acpf/controller.hpp"
 
+#include "acpf/controller.hpp"
+#include "acpf/task_queue.hpp"
+#include "acpf/thread_pool.hpp"
 
 TEST(ThreadPool, ExecutesTask) {
     acpf::TaskQueue queue;
@@ -13,12 +13,10 @@ TEST(ThreadPool, ExecutesTask) {
     std::promise<void> task_completed;
     auto task_finished = task_completed.get_future();
 
-    ASSERT_TRUE(
-        queue.push([&task_completed, &executed_tasks] {
-            executed_tasks.fetch_add(1, std::memory_order_relaxed);
-            task_completed.set_value();
-        })
-    );
+    ASSERT_TRUE(queue.push([&task_completed, &executed_tasks] {
+        executed_tasks.fetch_add(1, std::memory_order_relaxed);
+        task_completed.set_value();
+    }));
 
     {
         acpf::ThreadPool pool(queue, 1);
@@ -31,8 +29,7 @@ TEST(ThreadPool, ExecutesTask) {
          * loaded system. The timeout is nevertheless a test assumption,
          * so an exceptionally slow system could cause a false failure.
          */
-        const auto status =
-            task_finished.wait_for(std::chrono::seconds(1));
+        const auto status = task_finished.wait_for(std::chrono::seconds(1));
 
         ASSERT_EQ(status, std::future_status::ready);
     }
@@ -45,23 +42,18 @@ TEST(ThreadPool, ExecutesMultipleTasks) {
 
     acpf::TaskQueue queue;
     std::atomic<int> executed_task_count = 0;
-    
+
     std::promise<void> tasks_completed;
     auto tasks_finished = tasks_completed.get_future();
 
     for (int i = 0; i < task_count; ++i) {
-        ASSERT_TRUE(
-            queue.push([&executed_task_count, &tasks_completed] {
-                const int count = executed_task_count.fetch_add(
-                    1,
-                    std::memory_order_relaxed
-                ) + 1;
+        ASSERT_TRUE(queue.push([&executed_task_count, &tasks_completed] {
+            const int count = executed_task_count.fetch_add(1, std::memory_order_relaxed) + 1;
 
-                if (count == task_count) {
-                    tasks_completed.set_value();
-                }
-            })
-        );
+            if (count == task_count) {
+                tasks_completed.set_value();
+            }
+        }));
     }
 
     {
@@ -82,8 +74,7 @@ TEST(ThreadPool, ExecutesMultipleTasks) {
          * exceptionally slow or heavily loaded system, the test could
          * fail even though the ThreadPool is functionally correct.
          */
-        const auto status =
-            tasks_finished.wait_for(std::chrono::seconds(5));
+        const auto status = tasks_finished.wait_for(std::chrono::seconds(5));
 
         ASSERT_EQ(status, std::future_status::ready);
     }
@@ -115,30 +106,25 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
     auto release = release_tasks.get_future().share();
 
     for (int i = 0; i < task_count; ++i) {
-        ASSERT_TRUE(
-            queue.push([&active_tasks, &tasks_started, release] {
-                const int active = active_tasks.fetch_add(
-                    1,
-                    std::memory_order_relaxed
-                ) + 1;
-                /*
-                 * Once all tasks are active, signal the test thread.
-                 * Since task_count equals worker_count, reaching this
-                 * point means that all workers are executing tasks at
-                 * the same time.
-                 */
-                if (active == task_count) {
-                    tasks_started.set_value();
-                }
-                /*
-                 * Keep the task active until the test has verified
-                 * that all workers reached this point.
-                 */
-                release.wait();
+        ASSERT_TRUE(queue.push([&active_tasks, &tasks_started, release] {
+            const int active = active_tasks.fetch_add(1, std::memory_order_relaxed) + 1;
+            /*
+             * Once all tasks are active, signal the test thread.
+             * Since task_count equals worker_count, reaching this
+             * point means that all workers are executing tasks at
+             * the same time.
+             */
+            if (active == task_count) {
+                tasks_started.set_value();
+            }
+            /*
+             * Keep the task active until the test has verified
+             * that all workers reached this point.
+             */
+            release.wait();
 
-                active_tasks.fetch_sub(1, std::memory_order_relaxed);
-            })
-        );
+            active_tasks.fetch_sub(1, std::memory_order_relaxed);
+        }));
     }
 
     {
@@ -150,8 +136,7 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
          * execute all tasks concurrently, the future would never become
          * ready and an unconditional wait could block the test forever.
          */
-        const auto status =
-            all_tasks_started.wait_for(std::chrono::seconds(5));
+        const auto status = all_tasks_started.wait_for(std::chrono::seconds(5));
         /*
          * Release the tasks before shutting down the queue.
          * The tasks are currently blocked on release.wait(). They must
@@ -169,10 +154,7 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
         ASSERT_EQ(status, std::future_status::ready);
     }
 
-    EXPECT_EQ(
-        active_tasks.load(std::memory_order_relaxed),
-        0
-    );
+    EXPECT_EQ(active_tasks.load(std::memory_order_relaxed), 0);
 }
 
 TEST(ThreadPool, ReportsWorkerCount) {

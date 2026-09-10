@@ -1,17 +1,17 @@
 #include <atomic>
+#include <gtest/gtest.h>
 #include <thread>
 #include <vector>
-#include <gtest/gtest.h>
-#include "acpf/task_queue.hpp"
 
+#include "acpf/task_queue.hpp"
 
 TEST(TaskQueue, CanStoreAndRetrieveTask) {
     acpf::TaskQueue queue;
-    bool executed = false; 
+    bool executed = false;
     ASSERT_TRUE(queue.push([&executed] { executed = true; }));
-    acpf::Task task; 
-    ASSERT_TRUE(queue.wait_and_pop(task)); 
-    task(); 
+    acpf::Task task;
+    ASSERT_TRUE(queue.wait_and_pop(task));
+    task();
     EXPECT_TRUE(executed);
 }
 
@@ -68,9 +68,8 @@ TEST(TaskQueue, MultipleProducers) {
     for (int i = 0; i < producer_count; ++i) {
         producers.emplace_back([&queue, &rejected_tasks, &executed_tasks, &tasks_per_producer] {
             for (int j = 0; j < tasks_per_producer; ++j) {
-                const bool accepted = queue.push([&executed_tasks] {
-                    executed_tasks.fetch_add(1, std::memory_order_relaxed);
-                });
+                const bool accepted = queue.push(
+                    [&executed_tasks] { executed_tasks.fetch_add(1, std::memory_order_relaxed); });
 
                 if (!accepted) {
                     rejected_tasks.fetch_add(1, std::memory_order_relaxed);
@@ -79,7 +78,7 @@ TEST(TaskQueue, MultipleProducers) {
         });
     }
 
-    for (auto& producer : producers) {
+    for (auto &producer : producers) {
         producer.join();
     }
 
@@ -126,7 +125,7 @@ TEST(TaskQueue, MultipleConsumer) {
         });
     }
 
-    for (auto& consumer : consumers) {
+    for (auto &consumer : consumers) {
         consumer.join();
     }
 
@@ -162,9 +161,8 @@ TEST(TaskQueue, MultiProducerMultiConsumer) {
     for (int i = 0; i < producer_count; ++i) {
         producers.emplace_back([&queue, &rejected_tasks, &executed_tasks, &tasks_per_producer] {
             for (int j = 0; j < tasks_per_producer; ++j) {
-                const bool accepted = queue.push([&executed_tasks] {
-                    executed_tasks.fetch_add(1, std::memory_order_relaxed);
-                });
+                const bool accepted = queue.push(
+                    [&executed_tasks] { executed_tasks.fetch_add(1, std::memory_order_relaxed); });
 
                 if (!accepted) {
                     rejected_tasks.fetch_add(1, std::memory_order_relaxed);
@@ -173,13 +171,13 @@ TEST(TaskQueue, MultiProducerMultiConsumer) {
         });
     }
 
-    for (auto& producer : producers) {
+    for (auto &producer : producers) {
         producer.join();
     }
 
     queue.shutdown();
 
-    for (auto& consumer : consumers) {
+    for (auto &consumer : consumers) {
         consumer.join();
     }
 

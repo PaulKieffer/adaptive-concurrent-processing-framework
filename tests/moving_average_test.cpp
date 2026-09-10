@@ -1,17 +1,14 @@
 #include <gtest/gtest.h>
 #include <stdexcept>
-#include "acpf/moving_average.hpp"
 
+#include "acpf/moving_average.hpp"
 
 TEST(MovingAverage, ConstructsWithValidWindowSize) {
     acpf::MovingAverage<int> ma(1);
 }
 
 TEST(MovingAverage, RejectsWindowSizeZero) {
-    EXPECT_THROW(
-        acpf::MovingAverage<int> ma(0),
-        std::invalid_argument
-    );
+    EXPECT_THROW(acpf::MovingAverage<int> ma(0), std::invalid_argument);
 }
 
 TEST(MovingAverage, ReturnsZeroWhenEmpty) {
