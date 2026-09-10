@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstddef>
+#include <iostream>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
@@ -69,6 +70,7 @@ void ThreadPool::reap_stopped_workers() {
     for (auto &worker : stopped) {
         worker.join();
     }
+    std::cout << "workers reaped\n";
 }
 
 void ThreadPool::worker_stopped(std::thread::id id) {
@@ -76,7 +78,8 @@ void ThreadPool::worker_stopped(std::thread::id id) {
     // move stopped thread to end of array
     for (std::size_t i = 0; i < workers_.size(); ++i) {
         if (workers_[i].get_id() == id) {
-            std::swap(workers_[i], workers_.back());
+            const std::size_t active_end = workers_.size() - stopped_threads_ - 1;
+            std::swap(workers_[i], workers_[active_end]);
             ++stopped_threads_;
             if (pending_reductions_ > 0) {
                 --pending_reductions_;
@@ -92,5 +95,4 @@ void ThreadPool::wait_for_workers_to_stop() {
 
     control_condition_.wait(lock, [this] { return stopped_threads_ == workers_.size(); });
 }
-
 } // namespace acpf
