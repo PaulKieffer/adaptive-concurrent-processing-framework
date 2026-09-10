@@ -22,8 +22,8 @@ namespace acpf {
         std::vector<T> samples_;
         std::size_t next_index_ = 0;
         std::size_t sample_count_ = 0;
+        double prev_mavg_ = 0.0; 
         T sum_{};
-
     public:
         /*
          * Creates a moving average with the specified window size.
@@ -42,6 +42,7 @@ namespace acpf {
          * If the window is full, the oldest sample is replaced.
          */
         void add(T value) {
+            prev_mavg_ = this->value();
             if (sample_count_ == samples_.size()) {
                 sum_ -= samples_[next_index_];
             } else {
@@ -63,6 +64,14 @@ namespace acpf {
             }
 
             return static_cast<double>(sum_) / sample_count_;
+        }
+
+        /*
+         * Returns the difference between the current and the
+         * last moving average. 
+         */
+        double delta() const noexcept {
+            return this->value() - prev_mavg_;
         }
     };
 }
