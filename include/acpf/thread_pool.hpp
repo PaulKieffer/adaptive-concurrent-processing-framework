@@ -29,9 +29,10 @@ class ThreadPool {
 
     TaskQueue &queue_;
     std::vector<std::thread> workers_;
+    std::size_t max_worker_count_;
     mutable std::mutex control_mutex_;
     std::condition_variable control_condition_;
-    std::size_t pending_reductions_ = 0;
+    int pending_changes_ = 0;
     std::size_t stopped_threads_ = 0;
 
   public:
@@ -41,7 +42,7 @@ class ThreadPool {
      * provided TaskQueue.
      * Throws std::invalid_argument if worker_count is zero.
      */
-    ThreadPool(TaskQueue &queue, std::size_t worker_count);
+    ThreadPool(TaskQueue &queue, std::size_t worker_count, std::size_t max_worker_count);
     /*
      * Creates a thread pool using the system's reported hardware
      * concurrency.
@@ -64,6 +65,7 @@ class ThreadPool {
      * Does not forcibly terminate running workers.
      */
     void reduce_workers(std::size_t count);
+    void increase_workers(std::size_t count);
     /*
      * Waits until all currently active worker threads have stopped.
      *

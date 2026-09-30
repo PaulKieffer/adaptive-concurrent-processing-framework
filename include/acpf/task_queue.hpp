@@ -16,7 +16,7 @@ class TaskQueue {
   private:
     friend class ThreadPool;
 
-    std::queue<Task> queue_;
+    std::deque<Task> queue_;
     mutable std::mutex mutex_;
     std::condition_variable condition_;
     bool shutdown_ = false;
@@ -34,10 +34,12 @@ class TaskQueue {
     TaskQueue &operator=(const TaskQueue &) = delete;
 
     /*
-     * Adds a task to the queue.
+     * Adds a task to end of queue.
      * Returns false if the queue is shut down.
      */
-    bool push(Task task);
+    bool push_back(Task task);
+
+    bool push_front(Task task);
 
     /*
      * Waits for and removes a task from the queue.

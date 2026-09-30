@@ -8,7 +8,7 @@
 TEST(TaskQueue, CanStoreAndRetrieveTask) {
     acpf::TaskQueue queue;
     bool executed = false;
-    ASSERT_TRUE(queue.push([&executed] { executed = true; }));
+    ASSERT_TRUE(queue.push_back([&executed] { executed = true; }));
     acpf::Task task;
     ASSERT_TRUE(queue.wait_and_pop(task));
     task();
@@ -30,8 +30,8 @@ TEST(TaskQueue, ShutdownUnblocksWaitingConsumer) {
 TEST(TaskQueue, PendingTasksSurviveShutdown) {
     acpf::TaskQueue queue;
     int executed = 0;
-    ASSERT_TRUE(queue.push([&executed] { ++executed; }));
-    ASSERT_TRUE(queue.push([&executed] { ++executed; }));
+    ASSERT_TRUE(queue.push_back([&executed] { ++executed; }));
+    ASSERT_TRUE(queue.push_back([&executed] { ++executed; }));
     acpf::Task task;
     queue.shutdown();
     ASSERT_TRUE(queue.wait_and_pop(task));
@@ -47,7 +47,7 @@ TEST(TaskQueue, RejectPushAfterShutdown) {
     bool executed = false;
     acpf::Task task;
     queue.shutdown();
-    EXPECT_FALSE(queue.push([&executed] { executed = true; }));
+    EXPECT_FALSE(queue.push_back([&executed] { executed = true; }));
     EXPECT_FALSE(queue.wait_and_pop(task));
     EXPECT_FALSE(executed);
 }
@@ -68,7 +68,7 @@ TEST(TaskQueue, MultipleProducers) {
     for (int i = 0; i < producer_count; ++i) {
         producers.emplace_back([&queue, &rejected_tasks, &executed_tasks, &tasks_per_producer] {
             for (int j = 0; j < tasks_per_producer; ++j) {
-                const bool accepted = queue.push(
+                const bool accepted = queue.push_back(
                     [&executed_tasks] { executed_tasks.fetch_add(1, std::memory_order_relaxed); });
 
                 if (!accepted) {
@@ -107,7 +107,7 @@ TEST(TaskQueue, MultipleConsumer) {
     std::atomic<int> executed_tasks = 0;
 
     for (int i = 0; i < tasks; ++i) {
-        ASSERT_TRUE(queue.push([&executed_tasks] { ++executed_tasks; }));
+        ASSERT_TRUE(queue.push_back([&executed_tasks] { ++executed_tasks; }));
     }
 
     queue.shutdown();
@@ -161,7 +161,7 @@ TEST(TaskQueue, MultiProducerMultiConsumer) {
     for (int i = 0; i < producer_count; ++i) {
         producers.emplace_back([&queue, &rejected_tasks, &executed_tasks, &tasks_per_producer] {
             for (int j = 0; j < tasks_per_producer; ++j) {
-                const bool accepted = queue.push(
+                const bool accepted = queue.push_back(
                     [&executed_tasks] { executed_tasks.fetch_add(1, std::memory_order_relaxed); });
 
                 if (!accepted) {
@@ -190,7 +190,7 @@ TEST(TaskQueue, ReportsSize) {
 
     EXPECT_EQ(queue.size(), 0);
 
-    ASSERT_TRUE(queue.push([] {}));
+    ASSERT_TRUE(queue.push_back([] {}));
     EXPECT_EQ(queue.size(), 1);
 
     acpf::Task task;

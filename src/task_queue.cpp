@@ -4,12 +4,23 @@
 
 namespace acpf {
 
-bool TaskQueue::push(Task task) {
+bool TaskQueue::push_back(Task task) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (shutdown_)
             return false; // don't push new task on queue if shutdown activated
-        queue_.push(std::move(task));
+        queue_.push_back(std::move(task));
+    }
+    condition_.notify_one();
+    return true;
+}
+
+bool TaskQueue::push_front(Task task) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (shutdown_)
+            return false; // don't push new task on queue if shutdown activated
+        queue_.push_front(std::move(task));
     }
     condition_.notify_one();
     return true;
@@ -25,7 +36,7 @@ bool TaskQueue::wait_and_pop(Task &task) {
     // shutdown is complete once all pending tasks have been processed
     if (!queue_.empty()) {
         task = std::move(queue_.front());
-        queue_.pop();
+        queue_.pop_front();
         return true;
     }
 

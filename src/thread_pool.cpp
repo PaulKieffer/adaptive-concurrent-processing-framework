@@ -10,8 +10,9 @@
 
 namespace acpf {
 
-ThreadPool::ThreadPool(TaskQueue &queue, std::size_t worker_count) : queue_(queue) {
-    if (worker_count == 0) {
+ThreadPool::ThreadPool(TaskQueue &queue, std::size_t worker_count, std::size_t max_worker_count)
+    : queue_(queue), max_worker_count_(max_worker_count) {
+    if (worker_count == 0 || worker_count > max_worker_count) {
         throw std::invalid_argument("ThreadPool requires at least one worker");
     }
     // worker loop
@@ -28,7 +29,8 @@ ThreadPool::ThreadPool(TaskQueue &queue, std::size_t worker_count) : queue_(queu
     }
 }
 
-ThreadPool::ThreadPool(TaskQueue &queue) : ThreadPool(queue, std::thread::hardware_concurrency()) {}
+ThreadPool::ThreadPool(TaskQueue &queue)
+    : ThreadPool(queue, 1, std::thread::hardware_concurrency()) {}
 
 ThreadPool::~ThreadPool() = default;
 
@@ -41,17 +43,48 @@ void ThreadPool::reduce_workers(std::size_t count) {
     std::lock_guard lock(control_mutex_);
 
     // calculate allowed amount of workers to reduce (min 1 active worker)
-    const std::size_t effective_count = workers_.size() - pending_reductions_;
+    const std::size_t effective_count = workers_.size() + pending_changes_;
     if (effective_count <= 1 || count == 0) {
         return;
     }
     const std::size_t reducible = effective_count - 1;
+    // TODO: prüfe: reducible always equal to requested??
     const std::size_t requested = std::min(count, reducible);
-    pending_reductions_ += requested;
+    pending_changes_ -= requested;
 
     // request workers to stop
     for (std::size_t i = 0; i < requested; ++i) {
         queue_.request_worker_stop();
+    }
+}
+
+void ThreadPool::increase_workers(std::size_t count) {
+    std::lock_guard lock(control_mutex_);
+
+    // calculate allowed amount of workers to reduce (min 1 active worker)
+    const std::size_t effective_count = workers_.size() + pending_changes_;
+    std::cout << "effective count: " << effective_count << "\n";
+    std::cout << "max worker count: " << max_worker_count_ << "\n";
+    if (effective_count >= max_worker_count_ || count == 0) {
+        return;
+    }
+    const std::size_t increasable = max_worker_count_ - effective_count;
+    std::cout << "increasable: " << increasable << "\n";
+    // TODO: prüfe: increasable always equal to requested??
+    const std::size_t requested = std::min(count, increasable);
+    pending_changes_ += requested;
+
+    // request workers to start
+    for (std::size_t i = 0; i < requested; ++i) {
+        workers_.emplace_back([this] {
+            Task task;
+
+            while (queue_.wait_and_pop(task)) {
+                task();
+            }
+            // worker has stopped
+            worker_stopped(std::this_thread::get_id());
+        });
     }
 }
 
@@ -70,7 +103,6 @@ void ThreadPool::reap_stopped_workers() {
     for (auto &worker : stopped) {
         worker.join();
     }
-    std::cout << "workers reaped\n";
 }
 
 void ThreadPool::worker_stopped(std::thread::id id) {
@@ -81,8 +113,8 @@ void ThreadPool::worker_stopped(std::thread::id id) {
             const std::size_t active_end = workers_.size() - stopped_threads_ - 1;
             std::swap(workers_[i], workers_[active_end]);
             ++stopped_threads_;
-            if (pending_reductions_ > 0) {
-                --pending_reductions_;
+            if (pending_changes_ > 0) {
+                --pending_changes_;
             }
             break;
         }

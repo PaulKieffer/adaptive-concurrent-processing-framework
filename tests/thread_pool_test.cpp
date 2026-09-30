@@ -13,14 +13,14 @@ TEST(ThreadPool, ExecutesTask) {
     std::promise<void> task_completed;
     auto task_finished = task_completed.get_future();
 
-    ASSERT_TRUE(queue.push([&task_completed, &executed_tasks] {
+    ASSERT_TRUE(queue.push_back([&task_completed, &executed_tasks] {
         executed_tasks.fetch_add(1, std::memory_order_relaxed);
         task_completed.set_value();
     }));
 
     {
-        acpf::ThreadPool pool(queue, 1);
-        acpf::Controller controller(pool);
+        acpf::ThreadPool pool(queue, 1, 1);
+        acpf::Controller controller(pool, 10, 1, 10, 10);
         /*
          * A timeout prevents the test from blocking indefinitely if the
          * worker fails to execute the task.
@@ -47,7 +47,7 @@ TEST(ThreadPool, ExecutesMultipleTasks) {
     auto tasks_finished = tasks_completed.get_future();
 
     for (int i = 0; i < task_count; ++i) {
-        ASSERT_TRUE(queue.push([&executed_task_count, &tasks_completed] {
+        ASSERT_TRUE(queue.push_back([&executed_task_count, &tasks_completed] {
             const int count = executed_task_count.fetch_add(1, std::memory_order_relaxed) + 1;
 
             if (count == task_count) {
@@ -57,8 +57,8 @@ TEST(ThreadPool, ExecutesMultipleTasks) {
     }
 
     {
-        acpf::ThreadPool pool(queue, 1);
-        acpf::Controller controller(pool);
+        acpf::ThreadPool pool(queue, 1, 1);
+        acpf::Controller controller(pool, 10, 1, 10, 10);
         /*
          * Wait until all submitted tasks have been executed.
          *
@@ -106,7 +106,7 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
     auto release = release_tasks.get_future().share();
 
     for (int i = 0; i < task_count; ++i) {
-        ASSERT_TRUE(queue.push([&active_tasks, &tasks_started, release] {
+        ASSERT_TRUE(queue.push_back([&active_tasks, &tasks_started, release] {
             const int active = active_tasks.fetch_add(1, std::memory_order_relaxed) + 1;
             /*
              * Once all tasks are active, signal the test thread.
@@ -128,8 +128,8 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
     }
 
     {
-        acpf::ThreadPool pool(queue, worker_count);
-        acpf::Controller controller(pool);
+        acpf::ThreadPool pool(queue, worker_count, 4);
+        acpf::Controller controller(pool, 10, 1, 10, 10);
         /*
          * Wait until all workers are executing a task concurrently.
          * A timeout is used deliberately: if the ThreadPool does not
@@ -159,8 +159,8 @@ TEST(ThreadPool, ExecutesTasksConcurrently) {
 
 TEST(ThreadPool, ReportsWorkerCount) {
     acpf::TaskQueue queue;
-    acpf::ThreadPool pool(queue, 4);
-    acpf::Controller controller(pool);
+    acpf::ThreadPool pool(queue, 4, 4);
+    acpf::Controller controller(pool, 10, 1, 10, 10);
 
     EXPECT_EQ(pool.worker_count(), 4);
 }
