@@ -40,4 +40,27 @@ void Controller::update() {
         }
     }
 }
+
+void Controller::scheduler() {
+    using clock = std::chrono::steady_clock;
+    auto next = clock::now() + std::chrono::milliseconds(update_interval_);
+
+    std::unique_lock<std::mutex> lock(mutex_);
+    while (!stop_) {
+        cv_.wait_until(lock, next, [&] { return stop_; });
+        if (stop_) {
+            break;
+        }
+
+        lock.unlock();
+        queue_.push_front([this] { update(); });
+        lock.lock();
+
+        next += std::chrono::seconds(update_interval_);
+    }
+}
+
+void Controller::stop() {
+    stop_ = true;
+}
 } // namespace acpf

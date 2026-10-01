@@ -58,5 +58,7 @@ class Controller {
     ~Controller();
     // TODO: once fully implemented form contract
     void update();
+    void scheduler();
+    void stop();
 };
 } // namespace acpf
