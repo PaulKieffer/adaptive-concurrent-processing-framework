@@ -13,59 +13,48 @@ TEST(Controller, ShutsDownAllWorkers) {
     acpf::Controller controller(pool, 10, 0, 0, 10);
 }
 
-TEST(Controller, UpdateReducesWorkerOnEmptyQueue) {
+TEST(Controller, ControllerReducesWorkerOnEmptyQueue) {
     acpf::TaskQueue queue;
-    acpf::ThreadPool pool(queue, 2, 2);
+    acpf::ThreadPool pool(queue, 4, 4);
     acpf::Controller controller(pool, 10, 10, 20, 10);
     // nothing added to queue -> queue always empty
-    controller.update();
-    sleep(0.01); // simulates waiting period between updates
-    EXPECT_EQ(pool.worker_count(), 2);
-    controller.update();
-    sleep(0.01);
-    EXPECT_EQ(pool.worker_count(), 1);
+    EXPECT_EQ(pool.worker_count(), 4);
+    struct timespec waiting_period = {0, 25000000}; // 25 ms
+    // at least two update-cycles are needed, hence (wait > 20 ms)
+    nanosleep(&waiting_period, NULL); // wait for 25 ms
+    EXPECT_EQ(pool.worker_count(), 3);
 }
 
 TEST(Controller, MinOneWorkerAlive) {
     acpf::TaskQueue queue;
     acpf::ThreadPool pool(queue, 1, 1);
     acpf::Controller controller(pool, 10, 10, 20, 10);
-    controller.update();
-    sleep(0.01); // simulates waiting period between updates
+    struct timespec waiting_period = {0, 25000000}; // 25 ms
+    // at least two update-cycles are needed, hence (wait > 20 ms)
+    nanosleep(&waiting_period, NULL); // wait for 25 ms
     EXPECT_EQ(pool.worker_count(), 1);
 }
 
-TEST(Controller, UpdateIncreaseWorkersOnExceededThreshold) {
+TEST(Controller, ControllerIncreaseWorkersOnExceededThreshold) {
     acpf::TaskQueue queue;
-    acpf::ThreadPool pool(queue, 1, 2);
-    acpf::Controller controller(pool, 1, 1, 1, 10);
+    acpf::ThreadPool pool(queue, 1, 4);
+    acpf::Controller controller(pool, 2, 1, 1, 10);
     queue.push_back([] { sleep(2); });
-    queue.push_back([] { sleep(2); });
-    // sleep(0.01);
-    // controller.update();
     queue.push_back([] { sleep(1); });
     queue.push_back([] { sleep(1); });
-    queue.push_back([] { sleep(1); });
-    sleep(0.01);
-    controller.update();
-    queue.push_back([] { sleep(1); });
-    queue.push_back([] { sleep(1); });
-    queue.push_back([] { sleep(1); });
-    sleep(0.01);
-    controller.update();
+    struct timespec waiting_period = {0, 25000000}; // 25 ms
+    // at least two update-cycles are needed, hence (wait > 20 ms)
+    nanosleep(&waiting_period, NULL); // wait for 25 ms
     EXPECT_EQ(pool.worker_count(), 2);
 }
 
 TEST(Controller, SchedulerInitiatesUpdates) {
     acpf::TaskQueue queue;
-    acpf::ThreadPool pool(queue, 4, 4);
+    acpf::ThreadPool pool(queue, 2, 4);
     acpf::Controller controller(pool, 4, 1, 2, 10);
-    std::thread t{&acpf::Controller::scheduler, &controller};
-    sleep(5);
-    sleep(5);
-    sleep(5);
-    sleep(5);
-    EXPECT_EQ(pool.worker_count(), 3);
-    controller.stop();
-    t.join();
+    struct timespec waiting_period = {0, 25000000}; // 25 ms
+    // at least two update-cycles are needed, hence (wait > 20 ms)
+    nanosleep(&waiting_period, NULL); // wait for 25 ms
+    EXPECT_EQ(pool.worker_count(), 1);
+    // t.join();
 }

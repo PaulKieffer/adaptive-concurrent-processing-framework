@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <cstddef>
 #include <mutex>
+#include <thread>
 
 #include "acpf/moving_average.hpp"
 #include "acpf/task_queue.hpp"
@@ -35,8 +36,9 @@ class Controller {
     std::mutex mutex_;
     std::condition_variable cv_;
     bool stop_ = false;
+    std::thread scheduler_thread_;
 
-    // void update(); // TODO: make update private
+    void update();
 
   public:
     /*
@@ -56,9 +58,11 @@ class Controller {
      * block until all currently executing tasks have completed.
      */
     ~Controller();
-    // TODO: once fully implemented form contract
-    void update();
+    // TODO: comment
     void scheduler();
+    /*
+     * Stops the scheduler loop
+     */
     void stop();
 };
 } // namespace acpf

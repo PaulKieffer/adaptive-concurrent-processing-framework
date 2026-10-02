@@ -56,6 +56,7 @@ void ThreadPool::reduce_workers(std::size_t count) {
     for (std::size_t i = 0; i < requested; ++i) {
         queue_.request_worker_stop();
     }
+    std::cout << "workers reduced\n";
 }
 
 void ThreadPool::increase_workers(std::size_t count) {
